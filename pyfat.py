@@ -24,6 +24,7 @@ DIR_DELIM = "\\"
 
 class Disk:
 	def __init__(self, filename):
+		self.filename = filename
 		self.image = DiskImage(filename)
 		self.boot = PartitionBootSector(self.image[0])
 		self.fat1 = Fat12(self.image[1:10])
@@ -33,14 +34,26 @@ class Disk:
 
 	def __getitem__(self, key):
 		"""Returns the byte array for the given filename."""
-
-		full_path = key.split(DIR_DELIM)
-		dirs = full_path[:-1]
-		working_dir = self.open_dir(dirs)
-
-		return self.load_file(working_dir,full_path[-1])
+		working_dir, filename = self.strip_path(key)
+		return self.load_file(working_dir,filename)
 		
+	def strip_path(self, path):
+		path_list = key.split(DIR_DELIM)
+		dirs = path_list[:-1]
+		return self.open_dir(dirs), path_list[-1]
 
+	def dump(self, filename=None):
+		if not filename:
+			filename = self.filename
+		#TODO Finish this
+
+
+	def delete_file(self, filename):
+		"""
+		Deletes a file from the image. Receives the filename (including path)
+		"""
+		pass
+		
 	def open_dir(self, dir_list):
 		"""
 		Loads the directory table from the directory file.
@@ -177,7 +190,7 @@ class Directory:
 			data = tmp
 
 		for i in xrange(len(data)/32):
-			entry = DirectoryEntry(data[32*i:32*(i+1)])
+			entry = DirectoryEntry(data[32*i:32*(i+1)], i)
 			logging.debug("Entry %d = %s" % (i, entry.name))
 			
 			if (entry.attribute != 0x0F) and not (entry.erased() or entry.empty()) :
@@ -212,7 +225,8 @@ class Directory:
 	
 	
 class DirectoryEntry:
-	def __init__(self, entry):
+	def __init__(self, entry, offset=0):
+		self.offset = offset #Used for modifying the directory
 		self.name = util.make_string(entry[0x00:0x08]).strip().lower() # 8 bytes
 		self.extension = util.make_string(entry[0x08:0x0B]).strip().lower() # 3 bytes
 		self.attribute = entry[0x0B:0x0C][0] # 1 byte

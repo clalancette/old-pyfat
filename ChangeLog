@@ -1,3 +1,7 @@
+2007-01-15 Lauro Moura <lauromoura@gmail.com:
+	* pyfat.py: Added stubs for Disk.delete_file and Disk.dump. Created
+				Disk.strip_path to encapsulate the path stripping and loading.
+
 2007-01-12 Lauro Moura <lauromoura@gmail.com>:
 	* setup.py: Initial version.
 	* pyfat.py: Ditto
