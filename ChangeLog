@@ -1,0 +1,4 @@
+2007-01-12 Lauro Moura <lauromoura@gmail.com>:
+	* setup.py: Initial version.
+	* pyfat.py: Ditto
+	* util.py: Ditto
