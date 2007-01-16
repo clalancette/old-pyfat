@@ -28,6 +28,7 @@ class Disk:
 		self.filename = filename
 		self.image = DiskImage(filename)
 		self.boot = PartitionBootSector(self.image[0])
+		
 		self.fat1 = Fat12(self.image[1:10])
 		self.fat2 = Fat12(self.image[10:19])
 		self.root_dir = Directory(self.image[19:33],root=True)
@@ -140,7 +141,7 @@ class Disk:
 		cluster_size = self.boot.sectors_per_cluster*self.boot.bytes_per_sector
 
 		while(cluster != 0xFFF and data_read < file_size):
-			cluster_data = self.data[cluster-2] # exclude reserved clusters
+			cluster_data = self.cluster(cluster-2) # exclude reserved clusters
 			remaining_data = file_size - data_read
 			if cluster_size <= remaining_data:
 				data.extend(cluster_data)
@@ -155,7 +156,10 @@ class Disk:
 
 	def cluster(self, key):
 		"""Returns a cluster from the data area."""
-		return self.data[key]
+		data = []
+		for i in xrange(self.boot.sectors_per_cluster):
+			data.append(self.data[key+1])
+		return data
 
 
 class PartitionBootSector:
