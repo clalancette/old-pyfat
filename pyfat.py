@@ -2,6 +2,7 @@ import os
 import os.path
 
 import util
+import sys
 
 from array import *
 import logging
@@ -35,10 +36,11 @@ class Disk:
 	def __getitem__(self, key):
 		"""Returns the byte array for the given filename."""
 		working_dir, filename = self.strip_path(key)
+		logging.debug(filename)
 		return self.load_file(working_dir,filename)
 		
 	def strip_path(self, path):
-		path_list = key.split(DIR_DELIM)
+		path_list = path.split(DIR_DELIM)
 		dirs = path_list[:-1]
 		return self.open_dir(dirs), path_list[-1]
 
@@ -52,8 +54,17 @@ class Disk:
 		"""
 		Deletes a file from the image. Receives the filename (including path)
 		"""
-		pass
+		working_dir, filename = self.strip_path(filename)
+		if filename not in working_dir:
+			raise "FileNotFound"
+
 		
+	def copy_file(self, source, path=None):
+		if not path:
+			path = self.root_dir
+
+
+
 	def open_dir(self, dir_list):
 		"""
 		Loads the directory table from the directory file.
@@ -180,6 +191,7 @@ class Directory:
 	"""
 	def __init__(self, data, root=False):
 		self.entries = {}
+		self.empty = []
 
 		# When creating the root directory we recieve a list of sectors, so
 		# we need to 
@@ -193,7 +205,7 @@ class Directory:
 			entry = DirectoryEntry(data[32*i:32*(i+1)], i)
 			logging.debug("Entry %d = %s" % (i, entry.name))
 			
-			if (entry.attribute != 0x0F) and not (entry.erased() or entry.empty()) :
+			if (entry.attribute != 0x0F) and not entry.empty() :
 				if not entry.subdir():
 					key = entry.name + '.' + entry.extension
 				else:
@@ -201,6 +213,9 @@ class Directory:
 	
 				logging.debug("Adding key %s" % key)
 				self.entries[key] = entry
+			else:
+				logging.debug("Empty entry at offset %d", i)
+				self.empty.append(i)
 
 		self.count = 0
 
@@ -217,6 +232,14 @@ class Directory:
 			raise StopIteration
 		self.count += 1
 		return self[self.entries.keys()[self.count -1]]
+
+	def create_new_file(self, filename, overwrite=False):
+		name, extension = filename.split('.')
+
+		if (not overwrite) and name+"."+extension in self:
+			raise "FileAlreadyExists"
+	#TODO Construtor de DirectoryEntry aceitando os valores "normais"
+
 
 	# Not needed as we aren't dealing with erased files (not added to the table)
 	#def cleanup_erased(self):
@@ -374,8 +397,9 @@ class DiskImage:
 
 
 if __name__ == "__main__":
-	a = Disk("floppy.img")
+	a = Disk(sys.argv[1])
 	print a.boot
 
+	a.copy_file("..\\foo.txt")
 	print util.make_string(a['foo.txt'])
-	print util.make_string(a['zee\\foo.txt'])
+#print util.make_string(a['zee\\foo.txt'])
