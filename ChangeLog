@@ -1,4 +1,9 @@
-2007-01-15 Lauro Moura <lauromoura@gmail.com:
+2007-01-15 Lauro Moura <lauromoura@gmail.com>:
+	* pyfat.py: Constructor calculates FAT and root dir boundaries based on
+				boot sector data. Constructor for DirEntry keeps info on arrays
+				instead of Strings.
+
+2007-01-15 Lauro Moura <lauromoura@gmail.com>:
 	* pyfat.py: Added stubs for Disk.delete_file and Disk.dump. Created
 				Disk.strip_path to encapsulate the path stripping and loading.
 

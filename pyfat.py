@@ -29,10 +29,15 @@ class Disk:
 		self.image = DiskImage(filename)
 		self.boot = PartitionBootSector(self.image[0])
 		
-		self.fat1 = Fat12(self.image[1:10])
-		self.fat2 = Fat12(self.image[10:19])
-		self.root_dir = Directory(self.image[19:33],root=True)
-		self.data = self.image[33:]
+		fat1_start = 1
+		fat1_end = fat1_start + self.boot.sectors_per_fat
+		fat2_end = fat1_end + self.boot.sectors_per_fat
+		self.fat1 = Fat12(self.image[fat1_start:fat1_end])
+		self.fat2 = Fat12(self.image[fat1_end:fat2_end])
+		
+		root_dir_end = fat2_end + self.boot.root_entries*32/self.boot.bytes_per_sector
+		self.root_dir = Directory(self.image[fat2_end:root_dir_end],root=True)
+		self.data = self.image[root_dir_end:]
 
 	def __getitem__(self, key):
 		"""Returns the byte array for the given filename."""
@@ -60,11 +65,16 @@ class Disk:
 			raise "FileNotFound"
 
 		
-	def copy_file(self, source, path=None):
-		if not path:
-			path = self.root_dir
+	def copy_file(self, source, target_dir=None):
+		if not target_dir:
+			target_dir = self.root_dir
 
-
+		handle = open(source, "rb")
+		dirs, filename = os.path.split(source)
+		
+	def make_dir(self, dir_name, target_dir=None):
+		if not target_dir:
+			target_dir = self.root_dir
 
 	def open_dir(self, dir_list):
 		"""
@@ -211,9 +221,9 @@ class Directory:
 			
 			if (entry.attribute != 0x0F) and not entry.empty() :
 				if not entry.subdir():
-					key = entry.name + '.' + entry.extension
+					key = entry.name_str() + '.' + entry.ext_str()
 				else:
-					key = entry.name
+					key = entry.name_str()
 	
 				logging.debug("Adding key %s" % key)
 				self.entries[key] = entry
@@ -254,8 +264,8 @@ class Directory:
 class DirectoryEntry:
 	def __init__(self, entry, offset=0):
 		self.offset = offset #Used for modifying the directory
-		self.name = util.make_string(entry[0x00:0x08]).strip().lower() # 8 bytes
-		self.extension = util.make_string(entry[0x08:0x0B]).strip().lower() # 3 bytes
+		self.name = entry[0x00:0x08] # 8 bytes
+		self.extension = entry[0x08:0x0B] # 3 bytes
 		self.attribute = entry[0x0B:0x0C][0] # 1 byte
 		self.reserved = entry[0x0C:0x0D][0] # 1 byte
 		self.create_time = entry[0x0D:0x10] # 3 bytes
@@ -264,22 +274,42 @@ class DirectoryEntry:
 		self.long_starting_cluster = entry[0x14:0x16]
 		self.last_modified_time = entry[0x16:0x18] # 2 bytes
 		self.last_modified_date = entry[0x18:0x1A] # 2 bytes
-		self.starting_cluster = util.toInt(entry[0x1A:0x1C]) # 2 bytes
-		self.file_size = util.toInt(entry[0x1C:0x20]) # 4 bytes
+		self.starting_cluster = entry[0x1A:0x1C] # 2 bytes
+		self.file_size = entry[0x1C:0x20] # 4 bytes
+
+	def name_str(self):
+		return util.make_string(self.name).strip().lower()
+		
+	def ext_str(self):
+		return util.make_string(self.extension).strip().lower()
+		
+	def starting_cluster_int(self):
+		return util.toInt(self.starting_cluster)
+		
+	def file_size_int(self):
+		return util.toInt(self.file_size)
 
 	def __repr__(self):
-		return "Name: %s.%s - Size %d" % (self.name, self.extension,
-			self.file_size)
+		return "Name: %s.%s - Size %d" % (self.name_str(), self.extension_str(),
+			self.file_size_int())
 
 	def subdir(self):
 		return self.attribute & SUBDIR != 0
 
 	def erased(self):
-		return ord(self.name[0]) == ERASED_ENTRY
+		return self.name[0] == ERASED_ENTRY
 
 	def empty(self):
-		return ord(self.name[0]) == EMPTY_ENTRY
+		return self.name[0] == EMPTY_ENTRY
 
+	def __cmp__(self, other):
+		return self.offset.__cmp__(other.offset)
+		
+	def __eq__(self, other):
+		return self.starting_cluster == other.starting_cluster
+
+	def __neq__(self, other):
+		return self.starting_cluster != other.starting_cluster
 
 class Fat12:
 	"""
@@ -404,6 +434,6 @@ if __name__ == "__main__":
 	a = Disk(sys.argv[1])
 	print a.boot
 
-	a.copy_file("..\\foo.txt")
-	print util.make_string(a['foo.txt'])
+	#a.copy_file("..\\foo.txt")
+	#print util.make_string(a['foo.txt'])
 #print util.make_string(a['zee\\foo.txt'])
