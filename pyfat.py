@@ -6,6 +6,7 @@ import sys
 
 from array import *
 import logging
+from time import *
 logging.basicConfig(level=logging.DEBUG)
 
 SECTOR_SIZE = 512
@@ -75,6 +76,35 @@ class Disk:
 	def make_dir(self, dir_name, target_dir=None):
 		if not target_dir:
 			target_dir = self.root_dir
+			
+		empty_array = []
+		for i in xrange(32):
+			empty_array.append(0x00)
+			
+		dir_entry = DirectoryEntry(empty_array)
+		
+		# Name
+		dir_entry.name = map(ord, list(dir_name))
+		name_len = len(dir_entry.name)
+		if name_len < 8:
+			diff = 8 - name_len
+			for i in xrange(diff):
+				dir_entry.name.append(0x20)
+		
+		# Extension
+		dir_entry.extension = []
+		for i in xrange(3):
+			dir_entry.extension.append(0x20)
+		
+		# Atttribute	
+		dir_entry.attribute = dir_entry.attribute | SUBDIR_ENTRY
+		
+		# Create time
+		dir_entry.set_create_time_date(localtime())
+		
+		
+		print dir_entry.name
+		print dir_entry.name_str()
 
 	def open_dir(self, dir_list):
 		"""
@@ -252,15 +282,9 @@ class Directory:
 
 		if (not overwrite) and name+"."+extension in self:
 			raise "FileAlreadyExists"
-	#TODO Construtor de DirectoryEntry aceitando os valores "normais"
 
 
-	# Not needed as we aren't dealing with erased files (not added to the table)
-	#def cleanup_erased(self):
-	#	for k in self.entries.keys():
-	#		if(self[k].erased()):
-	
-	
+#TODO Construtor de DirectoryEntry aceitando os valores "normais"
 class DirectoryEntry:
 	def __init__(self, entry, offset=0):
 		self.offset = offset #Used for modifying the directory
@@ -310,6 +334,19 @@ class DirectoryEntry:
 
 	def __neq__(self, other):
 		return self.starting_cluster != other.starting_cluster
+		
+	def set_create_time_date(self, time_tuple):
+		# Create time
+		# 0-4 seconds
+		# 5-10 minutes
+		# 11-15 hours
+		(year, month, day, hour, minute, second, wdat, yday, dst) = time_tuple
+		second /= 2
+		time_field = second
+		time_field |= (minute << 5)
+		time_field |= (hour << 11)
+		
+		
 
 class Fat12:
 	"""
@@ -434,6 +471,7 @@ if __name__ == "__main__":
 	a = Disk(sys.argv[1])
 	print a.boot
 
+	a.make_dir("foobar")
 	#a.copy_file("..\\foo.txt")
 	#print util.make_string(a['foo.txt'])
 #print util.make_string(a['zee\\foo.txt'])

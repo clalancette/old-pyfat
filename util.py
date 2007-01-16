@@ -52,20 +52,27 @@ def hexdump(string, width=16, start=0):
 		lastline = line
 
 def toInt(string):
-	sum = 0
+	ret = 0
 	for i in xrange(len(string)):
-		sum += (int(string[i]) << (i*8))
+		ret += (int(string[i]) << (i*8))
 
-	return sum
+	return ret
 
 def toIntReverse(string):
-	sum = 0
+	ret = 0
 	for i in xrange(len(string)):
-		sum += (int(string[-(i+1)]) << (i*8))
+		ret += (int(string[-(i+1)]) << (i*8))
 
-	return sum
+	return ret
 
-def make_string(list):
+def make_string(bytes):
 	ba = array('B')
-	ba.fromlist(list)
+	ba.fromlist(bytes)
 	return ba.tostring()
+
+def fromInt(num):
+	"""Returns an array from an integer"""
+	ret = []
+	for i in xrange(4): #Change for arbitrary range
+		# x % 0xFF
+		# x >> 4
